@@ -12,7 +12,7 @@ Follow the instructions from the PyTorch home page: https://pytorch.org/
 
 #### 3 - Install Requirements
 ```
-pip install -r lab3/requirements.txt
+pip install -r NLPlab/requirements.txt
 ```
 
 #### 4 - Download pre-trained Word Embeddings
