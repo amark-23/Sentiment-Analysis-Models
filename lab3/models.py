@@ -25,44 +25,56 @@ class BaselineDNN(nn.Module):
         super(BaselineDNN, self).__init__()
 
         # 1 - define the embedding layer
-        ...  # EX4
+        embeddings = np.array(embeddings)
+        num_embeddings, emb_dim = embeddings.shape
+        self.embedding = nn.Embedding(num_embeddings, emb_dim)
 
-        # 2 - initialize the weights of our Embedding layer
-        # from the pretrained word embeddings
-        ...  # EX4
+        # 2 - initialize the weights of our Embedding layer from pretrained embeddings
+        self.embedding.weight.data.copy_(torch.tensor(embeddings))
 
         # 3 - define if the embedding layer will be frozen or finetuned
-        ...  # EX4
-
+        self.embedding.weight.requires_grad = trainable_emb
+        
         # 4 - define a non-linear transformation of the representations
-        ...  # EX5
+        self.hidden = nn.Linear(emb_dim, 64)  # using mean, min, max → emb_dim * 3
+        self.activation = nn.ReLU()
 
-        # 5 - define the final Linear layer which maps
-        # the representations to the classes
-        ...  # EX5
+        # 5 - define the final Linear layer which maps the representations to the classes
+        self.output = nn.Linear(64, output_size)
 
     def forward(self, x, lengths):
         """
         This is the heart of the model.
-        This function, defines how the data passes through the network.
+        This function, defines how the data passes through the network (forward pass).
 
-        Returns: the logits for each class
+        Args:
+            x (Tensor): tensor of shape (batch_size, max_len) containing word indices
+            lengths (Tensor): actual lengths of each sentence (no padding)
 
+        Returns:
+            logits (Tensor): tensor of shape (batch_size, num_classes)
         """
 
-        # 1 - embed the words, using the embedding layer
-        embeddings = ...  # EX6
+        # 1 - Embed the word indices
+        embeddings = self.embedding(x)  # (batch_size, max_len, emb_dim)
 
-        # 2 - construct a sentence representation out of the word embeddings
-        representations = ...  # EX6
+        # 2 - Compute mean embedding for each sentence (exclude padding)
+        mask = (x != 0).unsqueeze(-1)  # (batch_size, max_len, 1)
+        summed = torch.sum(embeddings * mask, dim=1)  # sum valid tokens
+        lengths = lengths.unsqueeze(1)  # (batch_size, 1)
+        avg_embeddings = summed / lengths  # (batch_size, emb_dim)
 
-        # 3 - transform the representations to new ones.
-        representations = ...  # EX6
+        # 3 - Apply non-linear transformation (hidden layer)
+        representations = self.activation(self.hidden(avg_embeddings))  # (batch_size, 64)
 
-        # 4 - project the representations to classes using a linear layer
-        logits = ...  # EX6
+        # 4 - Project to output classes
+        logits = self.output(representations)  # (batch_size, num_classes)
+        # Squeeze output if we're using BCEWithLogitsLoss (1 logit per sample)
+        if self.output.out_features == 1:
+            logits = logits.squeeze(1)  # from [batch_size, 1] → [batch_size]
 
         return logits
+
 
 
 class LSTM(nn.Module):
@@ -107,5 +119,6 @@ class LSTM(nn.Module):
         representations = ...
 
         logits = self.linear(representations)
-
+        if self.output.out_features == 1:
+            logits = logits.squeeze(1)
         return logits

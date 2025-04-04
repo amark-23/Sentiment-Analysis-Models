@@ -1,6 +1,7 @@
 from torch.utils.data import Dataset
 from tqdm import tqdm
-
+import numpy as np
+import torch
 
 class SentenceDataset(Dataset):
     """
@@ -13,6 +14,7 @@ class SentenceDataset(Dataset):
         - __getitem__(self, index): we have to return the properly
             processed data-item from our dataset with a given index
     """
+    MAX_LEN = 8
 
     def __init__(self, X, y, word2idx):
         """
@@ -31,12 +33,25 @@ class SentenceDataset(Dataset):
             word2idx (dict): a dictionary which maps words to indexes
         """
 
-        # self.data = X
-        # self.labels = y
-        # self.word2idx = word2idx
-
         # EX2
-        raise NotImplementedError
+        self.labels = y
+        self.word2idx = word2idx
+
+        # Basic tokenization: split each sentence by space
+        print("\n[INFO] Tokenizing dataset...")
+        self.data = [sentence.lower().split() for sentence in tqdm(X)]
+
+        # Debug: print first 10 tokenized examples
+        print("\n[INFO] First 10 tokenized examples:")
+        for i in range(min(10, len(self.data))):
+            print(self.data[i])
+
+        print("\n[INFO] First 5 examples after encoding and padding:")
+        for i in range(5):
+            ex, lbl, ln = self.__getitem__(i)
+            print(f"Original: {self.data[i]}")
+            print(f"Encoded: {ex.tolist()}, Label: {lbl.item()}, Length: {ln.item()}\n")
+    
 
     def __len__(self):
         """
@@ -76,7 +91,27 @@ class SentenceDataset(Dataset):
         """
 
         # EX3
+        tokens = self.data[index]
+        label = self.labels[index]
 
-        # return example, label, length
-        raise NotImplementedError
+        # Get the index for unknown tokens
+        unk_idx = self.word2idx.get("<unk>")  # it's guaranteed to exist by load_word_vectors()
+        pad_idx = 0  # index 0 is always used for padding
 
+        # Map each token to its index in word2idx
+        indexed = [self.word2idx.get(word, unk_idx) for word in tokens]
+
+        # Truncate or pad to MAX_LEN
+        length = min(len(indexed), self.MAX_LEN)
+        if len(indexed) < self.MAX_LEN:
+            indexed += [pad_idx] * (self.MAX_LEN - len(indexed))
+        else:
+            indexed = indexed[:self.MAX_LEN]
+
+        # Convert everything to tensors
+        example = torch.tensor(indexed, dtype=torch.long)
+        label = torch.tensor(label, dtype=torch.long)
+        length = torch.tensor(length, dtype=torch.long)
+
+        return example, label, length    
+            
