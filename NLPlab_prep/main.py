@@ -137,5 +137,4 @@ for DATASET in ["MR", "Semeval2017A"]:
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("loss_curve.png")
     plt.show()
