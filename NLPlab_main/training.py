@@ -46,10 +46,15 @@ def train_dataset(_epoch, dataloader, model, loss_function, optimizer):
         optimizer.zero_grad()
 
         # Step 2 - forward pass: y' = model(x)
-        outputs = model(inputs, lengths)
+        # If the model expects only inputs (like attention), don't pass lengths
+        try:
+            outputs = model(inputs, lengths)
+        except TypeError:
+            outputs = model(inputs)
+
 
         # Step 3 - compute loss: L = loss_function(y, y')
-        if model.output.out_features == 1:
+        if model.output_size == 1:
                 labels = labels.float()  # needed for BCEWithLogitsLoss
         loss = loss_function(outputs, labels)
 
@@ -96,19 +101,24 @@ def eval_dataset(dataloader, model, loss_function):
             lengths = lengths.to(device)
 
             # if output layer = 1 → BCEWithLogitsLoss → need float labels
-            if model.output.out_features == 1:
+            if model.output_size == 1:
                 labels = labels.float()
 
             # 3) forward pass
-            outputs = model(inputs, lengths)
-
+            # If the model expects only inputs (like attention), don't pass lengths
+            # If the model expects only inputs (like attention), don't pass lengths
+            try:
+                outputs = model(inputs, lengths)
+            except TypeError:
+                outputs = model(inputs)
+  
             # 4) compute loss
             loss = loss_function(outputs, labels)
             running_loss += loss.item()
 
             # 5) make predictions
             # if single logit, threshold at 0 → (0 or 1)
-            if model.output.out_features == 1:
+            if model.output_size == 1:
                 preds = (outputs > 0).long()  # shape: [batch_size]
             else:
                 # multi-class → pick largest logit

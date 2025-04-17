@@ -8,10 +8,13 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 from config import EMB_PATH
 from dataloading import SentenceDataset
-from models import BaselineDNN
+from models import LSTM
 from training import train_dataset, eval_dataset
 from utils.load_datasets import load_MR, load_Semeval2017A
 from utils.load_embeddings import load_word_vectors
+from training import torch_train_val_split
+from early_stopper import EarlyStopper
+from attention import SimpleSelfAttentionModel
 
 warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
 
@@ -70,70 +73,88 @@ for DATASET in ["MR", "Semeval2017A"]:
     train_set = SentenceDataset(X_train, y_train, word2idx)
     test_set = SentenceDataset(X_test, y_test, word2idx)
 
-    # EX7 - Define our PyTorch-based DataLoader
-    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True)
-    test_loader = DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=False)
+    # Split training set into training + validation
+    train_loader, val_loader = torch_train_val_split(
+        train_set,
+        batch_train=BATCH_SIZE,
+        batch_eval=BATCH_SIZE,
+        val_size=0.2
+    )
 
-    #############################################################################
-    # Model Definition (Model, Loss Function, Optimizer)
-    #############################################################################
+    test_loader = DataLoader(
+        test_set,
+        batch_size=BATCH_SIZE,
+        shuffle=False
+    )
+
+    # --- Loss function ---
     if n_classes == 2:
         criterion = torch.nn.BCEWithLogitsLoss()
-        output_size=1
+        output_size = 1
     else:
         criterion = torch.nn.CrossEntropyLoss()
-        output_size=n_classes
+        output_size = n_classes
 
-    model = BaselineDNN(output_size=output_size,
-                        embeddings=embeddings,
-                        trainable_emb=EMB_TRAINABLE)
+    # --- Model ---
+    """ #BaselineDNN
+    model = BaselineDNN(
+    output_size=output_size,
+    embeddings=embeddings,
+    trainable_emb=EMB_TRAINABLE
+    ).to(DEVICE)    
+    """
+    """ #LSTM
+    model = LSTM(
+        output_size=output_size,
+        embeddings=embeddings,
+        trainable_emb=EMB_TRAINABLE,
+        bidirectional=True
+    ).to(DEVICE)
+    """
+    model = SimpleSelfAttentionModel(
+    output_size=output_size,
+    embeddings=embeddings
+    ).to(DEVICE)
+    
+    # --- Early Stopper (after model is defined!) ---
+    save_path = f"best_model_{DATASET}.pt"
+    early_stopper = EarlyStopper(model, save_path, patience=5, min_delta=0.001)
 
-    # move the mode weight to cpu or gpu
-    model.to(DEVICE)
-    print(model)
+    # --- Optimizer ---
+    optimizer = torch.optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()), lr=1e-3
+    )
 
-    # We optimize ONLY those parameters that are trainable (p.requires_grad==True)
-    # 1. Επιλογή loss function
-    #
-    # 2. Επιλογή trainable παραμέτρων
-    parameters = filter(lambda p: p.requires_grad, model.parameters())
-
-    # 3. Επιλογή optimizer (π.χ. Adam)
-    optimizer = torch.optim.Adam(parameters, lr=1e-3)
-    #############################################################################
     # Training Pipeline
-    #############################################################################
     train_losses = []
-    test_losses = []
+    val_losses = []
 
     for epoch in range(1, EPOCHS + 1):
-        # train the model for one epoch
-        train_dataset(epoch, train_loader, model, criterion, optimizer)
+        train_loss = train_dataset(epoch, train_loader, model, criterion, optimizer)
+        val_loss, (y_val_gold, y_val_pred) = eval_dataset(val_loader, model, criterion)
 
-        # evaluate the performance of the model, on both data sets
-        train_loss, (y_train_gold, y_train_pred) = eval_dataset(train_loader,
-                                                                model,
-                                                                criterion)
-
-        test_loss, (y_test_gold, y_test_pred) = eval_dataset(test_loader,
-                                                            model,
-                                                            criterion)
         train_losses.append(train_loss)
-        test_losses.append(test_loss)
+        val_losses.append(val_loss)
 
-        print(f"\n[Epoch {epoch}] Train Loss: {train_loss:.4f} | Test Loss: {test_loss:.4f}")
-        print(get_metrics_report(y_test_gold, y_test_pred))
+        print(f"\n[Epoch {epoch}] Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
+        print(get_metrics_report(y_val_gold, y_val_pred))
 
+        if early_stopper.early_stop(val_loss):
+            print(f"\n[INFO] Early stopping triggered at epoch {epoch}")
+            break
+
+    # Τελική αξιολόγηση στο test set
+    test_loss, (y_test_gold, y_test_pred) = eval_dataset(test_loader, model, criterion)
     print("\n\nFinal Evaluation on Test Set:")
     print(get_metrics_report(y_test_gold, y_test_pred))
 
-
-    epochs = list(range(1, EPOCHS + 1))
+    # Plot
+    epochs = list(range(1, len(train_losses) + 1))
     plt.plot(epochs, train_losses, label='Train Loss')
-    plt.plot(epochs, test_losses, label='Test Loss')
+    plt.plot(epochs, val_losses, label='Validation Loss')
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
-    plt.title("Training vs Test Loss")
+    plt.title(f"Training vs Validation Loss ({DATASET})")
     plt.legend()
     plt.grid(True)
     plt.tight_layout()

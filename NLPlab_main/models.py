@@ -111,19 +111,32 @@ class LSTM(nn.Module):
     def forward(self, x, lengths):
         batch_size, max_length = x.shape
         embeddings = self.embeddings(x)
+        
+        # Pack sequence
         X = torch.nn.utils.rnn.pack_padded_sequence(
-            embeddings, lengths, batch_first=True, enforce_sorted=False)
+            embeddings, lengths, batch_first=True, enforce_sorted=False
+        )
 
         ht, _ = self.lstm(X)
 
-        # ht is batch_size x max(lengths) x hidden_dim
+        # Unpack sequence
         ht, _ = torch.nn.utils.rnn.pad_packed_sequence(ht, batch_first=True)
 
-        # pick the output of the lstm corresponding to the last word
-        # TODO: Main-Lab-Q2 (Hint: take actual lengths into consideration)
-        representations = ...
+        # === Get the last hidden state based on true lengths ===
+        # lengths: tensor of shape (batch_size)
+        # We subtract 1 because indices start from 0
+        lengths = lengths.to(ht.device)  # make sure it's on the same device
+        idx = (lengths - 1).view(-1, 1).expand(-1, ht.size(2))  # shape: (batch_size, hidden_dim)
+        idx = idx.unsqueeze(1)  # shape: (batch_size, 1, hidden_dim)
+
+        # Gather last relevant hidden states
+        representations = ht.gather(1, idx).squeeze(1)  # shape: (batch_size, hidden_dim)
 
         logits = self.linear(representations)
-        if self.output.out_features == 1:
+        
+        # For binary classification, squeeze output
+        if self.output_size == 1:
             logits = logits.squeeze(1)
+
         return logits
+
