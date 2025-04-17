@@ -14,5 +14,3 @@ Lab code and instructions for the Speech and language Processing course in the N
 
 ```
 
-Read README file under lab and the handouts (available through mycourses) for lab-specific instructions.
-
