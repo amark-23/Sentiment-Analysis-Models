@@ -107,20 +107,52 @@ class MultiHeadAttention(nn.Module):
 
 
 class MultiHeadAttentionModel(nn.Module):
-
     def __init__(self, output_size, embeddings, max_length=60, n_head=3):
         super().__init__()
 
-        # TODO: Main-Lab-Q4 - define the model
-        # Hint: it will be similar to `SimpleSelfAttentionModel` but
-        # `MultiHeadAttention` will be utilized for the self-attention module here
-        ...
+        self.n_head = n_head
+        self.max_length = max_length
 
-    def forward(self, x):
-        ...
+        embeddings = np.array(embeddings)
+        num_embeddings, dim = embeddings.shape
+        head_size = dim // self.n_head
 
-        logits = ...
+        # Token and position embeddings
+        self.token_embedding_table = nn.Embedding(num_embeddings, dim)
+        self.token_embedding_table = self.token_embedding_table.from_pretrained(
+            torch.Tensor(embeddings), freeze=True
+        )
+        self.position_embedding_table = nn.Embedding(self.max_length, dim)
+
+        # Multi-head attention
+        self.sa = MultiHeadAttention(num_heads=self.n_head, head_size=head_size, n_embd=dim)
+
+        # Feedforward block and layer norms
+        self.ffwd = FeedFoward(dim)
+        self.ln1 = nn.LayerNorm(dim)
+        self.ln2 = nn.LayerNorm(dim)
+
+        # Output layer
+        self.output_size = output_size 
+        self.output = nn.Linear(dim, output_size)
+
+    def forward(self, x, lengths=None):
+        B, T = x.shape
+
+        tok_emb = self.token_embedding_table(x)                  # (B, T, C)
+        pos_emb = self.position_embedding_table(torch.arange(T, device=x.device))  # (T, C)
+        x = tok_emb + pos_emb                                    # (B, T, C)
+
+        x = x + self.sa(self.ln1(x))                              # attention + residual
+        x = x + self.ffwd(self.ln2(x))                            # feedforward + residual
+
+        x = x.mean(dim=1)                                        # average pooling over tokens
+
+        logits = self.output(x)                                  # (B, output_size)
+        if self.output_size == 1:
+            logits = logits.squeeze(1)
         return logits
+
 
 
 class Block(nn.Module):

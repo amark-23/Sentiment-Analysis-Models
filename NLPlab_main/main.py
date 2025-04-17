@@ -15,6 +15,7 @@ from utils.load_embeddings import load_word_vectors
 from training import torch_train_val_split
 from early_stopper import EarlyStopper
 from attention import SimpleSelfAttentionModel
+from attention import MultiHeadAttentionModel
 
 warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
 
@@ -96,6 +97,7 @@ for DATASET in ["MR", "Semeval2017A"]:
         output_size = n_classes
 
     # --- Model ---
+    
     """ #BaselineDNN
     model = BaselineDNN(
     output_size=output_size,
@@ -103,6 +105,7 @@ for DATASET in ["MR", "Semeval2017A"]:
     trainable_emb=EMB_TRAINABLE
     ).to(DEVICE)    
     """
+    
     """ #LSTM
     model = LSTM(
         output_size=output_size,
@@ -111,9 +114,19 @@ for DATASET in ["MR", "Semeval2017A"]:
         bidirectional=True
     ).to(DEVICE)
     """
+
+    """ #SimpleAttention
     model = SimpleSelfAttentionModel(
     output_size=output_size,
     embeddings=embeddings
+    ).to(DEVICE)
+    """
+    #MultiHeadAttention
+    model = MultiHeadAttentionModel(
+    output_size=output_size,
+    embeddings=embeddings,
+    max_length=60,     
+    n_head=5           
     ).to(DEVICE)
     
     # --- Early Stopper (after model is defined!) ---
