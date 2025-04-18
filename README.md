@@ -2,7 +2,7 @@
 
 This project implements and compares various sentiment classification models on the MR and SemEval2017A datasets. Techniques range from simple baselines to advanced pre-trained transformer fine-tuning.
 
-## Models Implemented
+## ⚙️Models Implemented
 - Baseline DNN
 - LSTM (uni/bi-directional)
 - Self-Attention & Multi-Head Attention
@@ -10,7 +10,7 @@ This project implements and compares various sentiment classification models on 
 - Pre-trained models via Hugging Face (`siebert/`, `cardiffnlp/`, etc.)
 - Fine-tuned Transformer models (Colab-compatible)
 
-## ⚙️ Features
+## Features
 - Embedding loading (e.g. GloVe)
 - Attention mechanisms from scratch
 - Evaluation with accuracy, recall, F1-score
