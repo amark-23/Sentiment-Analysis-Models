@@ -8,14 +8,13 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 from config import EMB_PATH
 from dataloading import SentenceDataset
-from models import LSTM
+from models import *
 from training import train_dataset, eval_dataset
 from utils.load_datasets import load_MR, load_Semeval2017A
 from utils.load_embeddings import load_word_vectors
 from training import torch_train_val_split
 from early_stopper import EarlyStopper
-from attention import SimpleSelfAttentionModel
-from attention import MultiHeadAttentionModel
+from attention import *
 
 warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
 
@@ -121,14 +120,27 @@ for DATASET in ["MR", "Semeval2017A"]:
     embeddings=embeddings
     ).to(DEVICE)
     """
-    #MultiHeadAttention
+
+    """ #MultiHeadAttention
     model = MultiHeadAttentionModel(
     output_size=output_size,
     embeddings=embeddings,
     max_length=60,     
     n_head=5           
     ).to(DEVICE)
+    """
     
+    # --- Model ---
+    model = TransformerEncoderModel(
+    output_size=output_size,
+    embeddings=embeddings,
+    max_length=60,
+    n_head=3,        # 4, 5
+    n_layer=3        # 2, 6 ανάλογα
+    ).to(DEVICE)
+
+
+
     # --- Early Stopper (after model is defined!) ---
     save_path = f"best_model_{DATASET}.pt"
     early_stopper = EarlyStopper(model, save_path, patience=5, min_delta=0.001)
