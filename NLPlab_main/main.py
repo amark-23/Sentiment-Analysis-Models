@@ -113,24 +113,24 @@ for DATASET in ["MR", "Semeval2017A"]:
         bidirectional=True
     ).to(DEVICE)
     """
-
-    """ #SimpleAttention
+    """
+    #SimpleAttention
     model = SimpleSelfAttentionModel(
     output_size=output_size,
     embeddings=embeddings
     ).to(DEVICE)
     """
 
-    """ #MultiHeadAttention
+    #""" #MultiHeadAttention
     model = MultiHeadAttentionModel(
     output_size=output_size,
     embeddings=embeddings,
     max_length=60,     
     n_head=5           
     ).to(DEVICE)
-    """
+    #"""
     
-    # --- Model ---
+    """ #TransformerEncoder
     model = TransformerEncoderModel(
     output_size=output_size,
     embeddings=embeddings,
@@ -138,10 +138,9 @@ for DATASET in ["MR", "Semeval2017A"]:
     n_head=3,        # 4, 5
     n_layer=3        # 2, 6 ανάλογα
     ).to(DEVICE)
-
-
-
-    # --- Early Stopper (after model is defined!) ---
+    #"""
+    
+    # --- Early Stopper ---
     save_path = f"best_model_{DATASET}.pt"
     early_stopper = EarlyStopper(model, save_path, patience=5, min_delta=0.001)
 

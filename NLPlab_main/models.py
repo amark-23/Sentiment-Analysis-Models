@@ -108,7 +108,7 @@ class LSTM(nn.Module):
 
         self.linear = nn.Linear(self.representation_size, output_size)
 
-    def forward(self, x, lengths):
+    def forward(self, x, lengths=None):
         batch_size, max_length = x.shape
         embeddings = self.embeddings(x)
         
